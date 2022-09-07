@@ -36,6 +36,10 @@ const config: { devServer?: DevServerConfiguration } & Configuration = {
     new ProgressPlugin(),
     new UserscriptPlugin({
       useCDN: true,
+      appendExternal: [{
+        name: "@mui/material",
+        as: "MaterialUI"
+      }]
     }),
   ],
   devtool: false,
