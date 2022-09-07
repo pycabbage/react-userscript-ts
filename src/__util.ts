@@ -59,6 +59,13 @@ export class UserscriptPlugin implements WebpackPluginInstance {
     }, ...options };
   }
 
+  addMetadata(key: string, value: string) {
+    const metadata = { key, value };
+    this.metadataArray.push(metadata);
+    this.metadataTextArray.splice(this.metadataArray.length, 0,
+      `// @${metadata.key}      ${metadata.value}`);
+  }
+
   readMetadata(filepath: string, isDev: boolean): string {
     const source = readFileSync(filepath).toString()
     const parsedMetadata: ParsingResult = parse({
@@ -71,22 +78,14 @@ export class UserscriptPlugin implements WebpackPluginInstance {
     const includeReact = this.metadataArray.map(meta => (meta.key === "require" && /react@.*\.js/.test(meta.value))).includes(true)
     const includeReactDOM = this.metadataArray.map(meta => (meta.key === "require" && /react-dom@.*\.js/.test(meta.value))).includes(true)
     if (this.options.useCDN && !includeReact) {
-      const metadata = {
-        key: "require",
-        value: `https://unpkg.com/react@${this.options.reactVersion}/umd/react.${isDev ? "development" : "production.min"}.js`
-      }
-      this.metadataArray.push(metadata)
-      this.metadataTextArray.splice(this.metadataArray.length, 0,
-        `// @${metadata.key}      ${metadata.value}`)
+      this.addMetadata("require", `https://unpkg.com/react@${this.options.reactVersion}/umd/react.${isDev ? "development" : "production.min"}.js`)
     }
     if (this.options.useCDN && !includeReactDOM) {
-      const metadata = {
-        key: "require",
-        value: `https://unpkg.com/react-dom@${this.options.reactDomVersion}/umd/react-dom.${isDev ? "development" : "production.min"}.js`
-      }
-      this.metadataArray.push(metadata)
-      this.metadataTextArray.splice(this.metadataArray.length, 0,
-        `// @${metadata.key}      ${metadata.value}`)
+      this.addMetadata("require", `https://unpkg.com/react-dom@${this.options.reactDomVersion}/umd/react-dom.${isDev ? "development" : "production.min"}.js`)
+    }
+    if (process.env.USERSCRIPT_UPDATE_URL) {
+      this.addMetadata("updateURL", process.env.USERSCRIPT_UPDATE_URL)
+      this.addMetadata("downloadURL", process.env.USERSCRIPT_UPDATE_URL)
     }
     return this.metadataTextArray.join("\n")
   }
