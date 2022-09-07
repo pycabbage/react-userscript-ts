@@ -38,7 +38,7 @@ jobs:
 
     - name: Get update url
       id: update-url
-      run: echo "::set-env name=PAGES_UPDATE::https://${{ github.actor }}.github.io/${GITHUB_REPOSITORY#*/}/main.user.js"
+      run: echo "::set-output name=PAGES_UPDATE::https://${{ github.actor }}.github.io/${GITHUB_REPOSITORY#*/}/main.user.js"
 
     - name: Build
       run: yarn build
