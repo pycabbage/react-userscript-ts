@@ -58,4 +58,4 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v1
         env:
-          U_UPDATE_URL: '${{ url }}/main.user.js'
+          U_UPDATE_URL: 'https://${{ github.actor }}.github.io/${GITHUB_REPOSITORY}/main.user.js'
