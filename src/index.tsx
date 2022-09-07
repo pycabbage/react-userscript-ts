@@ -11,11 +11,14 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App";
 
+
 // Specify container here
 const container = document.querySelector("body > div")!;
 while (container.lastChild) {
   container.removeChild(container.lastChild);
 }
+
+
 const root = createRoot(container!);
 root.render(
   <StrictMode>

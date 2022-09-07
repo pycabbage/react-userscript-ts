@@ -35,7 +35,7 @@ const config: { devServer?: DevServerConfiguration } & Configuration = {
     new CleanWebpackPlugin(),
     new ProgressPlugin(),
     new UserscriptPlugin({
-      // useCDN: false,
+      useCDN: true,
     }),
   ],
   devtool: false,
