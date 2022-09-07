@@ -34,13 +34,7 @@ const config: { devServer?: DevServerConfiguration } & Configuration = {
   plugins: [
     new CleanWebpackPlugin(),
     new ProgressPlugin(),
-    new UserscriptPlugin({
-      useCDN: true,
-      appendExternal: [{
-        name: "@mui/material",
-        as: "MaterialUI"
-      }]
-    }),
+    new UserscriptPlugin(),
   ],
   devtool: false,
   cache:true,

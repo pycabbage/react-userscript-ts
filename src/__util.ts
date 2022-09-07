@@ -10,9 +10,19 @@ import { readdirSync } from "fs";
 
 /// <reference types="webpack" />
 
-type OptionsType = {
+interface IExternal {
+  name: string;
+  version?: string;
+  as?: string;
+  url?: string | {
+    dev: string;
+    prod: string;
+  };
+}
+
+type OptionsType = Partial<{
   /** use CDN or include React library */
-  useCDN: boolean;
+  useCDN?: boolean;
   /**
    * React version
    * - if not specified, read from `package.json`
@@ -24,12 +34,8 @@ type OptionsType = {
    */
   reactDomVersion?: string;
 
-  appendExternal: {
-    name: string;
-    version?: string;
-    as: string;
-  }[];
-};
+  appendExternal?: IExternal[];
+}>;
 
 interface metadataValue {
   key: string;
@@ -65,6 +71,11 @@ interface IFile {
   size: number;
 }
 
+type IFS = Partial<{
+  prod: string;
+  dev: string;
+}>
+
 export class UserscriptPlugin implements WebpackPluginInstance {
   static defaultOptions: OptionsType = {
     useCDN: true,
@@ -74,14 +85,19 @@ export class UserscriptPlugin implements WebpackPluginInstance {
   metadataTextArray: string[] = [];
   metadataArray: metadataValue[] = [];
   metadataText: string = "";
-  requireArray: string[] = [];
-  exMeta: Function = () => {};
+  // requireArray: string[] = [];
+  requireArray: {
+    name: string;
+    url: string;
+  }[] = [];
 
   constructor(options: OptionsType = UserscriptPlugin.defaultOptions) {
-    this.options = { ...{
-      reactVersion: PackageJson.devDependencies["react"],
-      reactDomVersion: PackageJson.devDependencies["react-dom"],
-    }, ...options };
+    this.options = {
+      ...{
+        reactVersion: PackageJson.devDependencies["react"],
+        reactDomVersion: PackageJson.devDependencies["react-dom"],
+      }, ...options
+    };
   }
 
   addMetadata(key: string, value: string) {
@@ -115,49 +131,102 @@ export class UserscriptPlugin implements WebpackPluginInstance {
     return this.metadataTextArray.join("\n")
   }
 
-  async _getLinkFromCDN(name: string, version: string, isDev: boolean): Promise<string|void> {
+  async _getLinkFromCDN(name: string, version: string, isDev: boolean): Promise<string | void> {
     const dir: IDir = await (await fetch(`https://unpkg.com/${name}@${version}/umd/?meta`)).json();
     const res: Partial<{
       prod: string;
       dev: string;
     }> = {};
     dir.files.forEach((file) => {
-      if (file.path.includes("development")) {
-        res.dev = file.path;
-      } else if (file.path.includes("production")) {
+      if (file.path.includes(".min.")) {
         res.prod = file.path;
+      } else {
+        res.dev = file.path;
       }
     })
     return res[isDev ? "dev" : "prod"];
   }
 
-  _getLinkFromLocal(name: string, version: string, isDev: boolean): string|void {
-    const umdPath = join(__dirname, "../node_modules", name, "umd")
-    if (existsSync(umdPath)) {
-      const dir = readdirSync(umdPath);
-      const res: Partial<{
-        prod: string;
-        dev: string;
-      }> = {};
-      dir.forEach((file) => {
-        if (file.includes("development")) {
-          res.dev = file;
-        } else if (file.includes("production")) {
-          res.prod = file;
+  _getLinkFromLocal(
+    name: string,
+    version: string,
+    isDev: boolean,
+    relativePath: string[] | void = undefined,
+    tried: number = -1
+  ): string | void {
+    const tr = [
+      ["umd"],
+      ["lib", "umd"],
+      [],
+    ]
+    if (!relativePath) {
+      return this._getLinkFromLocal(name, version, isDev, tr[tried + 1], tried + 1);
+    }
+    const path = join(__dirname, "../node_modules", name, ...relativePath)
+    if (existsSync(path)) {
+      const dir = readdirSync(path);
+      if (dir.some(f=>/\.min\./.test(f))) {
+        const res: IFS = {};
+        dir.filter(f => f.includes(".js")).forEach((file) => {
+          if (/\.min\..s$/.test(file)) {
+            res.prod = file;
+          } else {
+            res.dev = file;
+          }
+        })
+        return `https://unpkg.com/${name}@${version}/${relativePath.join("/")}${relativePath.length?"/":""}${res[isDev ? "dev" : "prod"]}`
+      } else {
+        if (tried < tr.length) {
+          return this._getLinkFromLocal(name, version, isDev, tr[tried + 1], tried + 1);
         }
-      })
-      return `https://unpkg.com/${name}@${version}/umd/${res[isDev ? "dev" : "prod"]}`
+      }
+    } else {
+      if (tried < tr.length) {
+        // return this._getLinkFromLocal(name, version, isDev, join(relativePath, ...tr[tried + 1]), tried + 1);
+        return this._getLinkFromLocal(name, version, isDev, tr[tried + 1], tried + 1);
+      }
     }
   }
 
-  async getLink(name: string, version: string, isDev: boolean): Promise<string> {
-    let link = this._getLinkFromLocal(name, version, isDev);
-    if (!link) {
+  getLink(name: string, version: string, isDev: boolean): string {
+    let link: string|void = this._getLinkFromLocal(name, version, isDev);
+    if (link) {
+      return link;
+    } else {
       console.log("UMD not found in local, trying to get from CDN...")
-      link = await this._getLinkFromCDN(name, version, isDev);
+      // @ts-ignore
+      link = this._getLinkFromCDN(name, version, isDev);
+      if (!link) throw Error("cannnot get link from CDN and local")
+      return link;
     }
-    if (!link) throw Error("cannnot get link from CDN and local")
-    return link;
+  }
+
+  async appendExternal(external: IExternal, isDev: boolean) {
+    if (external.url) {
+      if (typeof external.url === "string") {
+        this.requireArray.push({
+          name: external.name,
+          url: external.url
+        })
+      } else {
+        this.requireArray.push({
+          name: external.name,
+          url: external.url[isDev ? "dev" : "prod"]
+        })
+      }
+    } else {
+      let version: string = external.version
+        // @ts-ignore
+        || PackageJson.devDependencies[external.name]
+        // @ts-ignore
+        || PackageJson.dependencies[external.name]
+        || "latest";
+      const link = this.getLink(external.name, version, isDev)
+      this.requireArray.push({
+        name: external.name,
+        url: link
+      })
+    }
   }
 
   fixDependencyLink(compiler: Compiler): Compiler["options"]["externals"] {
@@ -172,22 +241,43 @@ export class UserscriptPlugin implements WebpackPluginInstance {
         (data, callback) => {
           if (this.options.useCDN) {
             const isDev = compiler.options.mode === "development"
-            if (/react(\/.*)?/.test(data.request || "")) {
+            if (/^react(\/.*)?/.test(data.request || "")) {
               return callback(undefined, "React")
-            } else if (/react-dom(\/.*)?/.test(data.request || "")) {
+            } else if (/^react-dom(\/.*)?/.test(data.request || "")) {
               return callback(undefined, "ReactDOM")
             } else {
               let ok = false;
-              this.options.appendExternal.forEach((external) => {
+              this.options.appendExternal!.forEach((external) => {
                 if (data.request && data.request.includes(external.name)) {
-                  let version: string = external.version
-                    // @ts-ignore
-                    || PackageJson.devDependencies[external.name]
-                    // @ts-ignore
-                    || PackageJson.dependencies[external.name];
-                  this.getLink(external.name, version, isDev).then(link => {
-                    this.requireArray.push(link)
-                  })
+                  /*
+                  if (external.url) {
+                    if (typeof external.url === "string") {
+                      this.requireArray.push({
+                        name: external.name,
+                        url: external.url
+                      })
+                    } else {
+                      this.requireArray.push({
+                        name: external.name,
+                        url: external.url[isDev ? "dev" : "prod"]
+                      })
+                    }
+                  } else {
+                    let version: string = external.version
+                      // @ts-ignore
+                      || PackageJson.devDependencies[external.name]
+                      // @ts-ignore
+                      || PackageJson.dependencies[external.name]
+                      || "latest";
+                    this.getLink(external.name, version, isDev).then(link => {
+                      this.requireArray.push({
+                        name: external.name,
+                        url: link
+                      })
+                    })
+                  }
+                  */
+                  this.appendExternal(external, isDev)
                   ok = true;
                   callback(undefined, external.as)
                 }
@@ -205,6 +295,18 @@ export class UserscriptPlugin implements WebpackPluginInstance {
     }
   }
 
+  fixRequireArray(requireArray: this["requireArray"], isDev: boolean): void {
+    const ae = (this.options.appendExternal || []).map(e => e.name)
+    const ra = requireArray.map(e => e.name)
+    ae.forEach(e => {
+      if (!ra.includes(e)) {
+        this.appendExternal({
+          name: e,
+        }, isDev)
+      }
+    })
+  }
+
   apply(compiler: Compiler) {
     // add external UMD module to require
     compiler.options.externals = this.fixDependencyLink(compiler)
@@ -212,7 +314,7 @@ export class UserscriptPlugin implements WebpackPluginInstance {
     if (typeof compiler.options.output.filename === "string" && !compiler.options.output.filename.endsWith(".user.js")) {
       compiler.options.output.filename = compiler.options.output.filename.replace(/\.js/, ".user.js")
     }
-    compiler.hooks.entryOption.tap("UserscriptPlugin", (( path, entries ) => {
+    compiler.hooks.entryOption.tap("UserscriptPlugin", ((path, entries) => {
       const isDev = compiler.options.mode === "development"
       for (const e in entries) {
         const filepath = join(path, (entries as { [index: string]: { import: string[] } } & EntryNormalized)[e].import[0] as string);
@@ -224,9 +326,10 @@ export class UserscriptPlugin implements WebpackPluginInstance {
 
     // insert metadata to head of emitted asset
     compiler.hooks.make.tap("UserscriptPlugin", compilation => {
-      compilation.hooks.afterOptimizeAssets.tap("UserscriptPlugin", assets => {
+      compilation.hooks.afterOptimizeAssets.tap("UserscriptPlugin", async (assets) => {
+        this.fixRequireArray(this.requireArray, compiler.options.mode === "development")
         this.requireArray.forEach((require) => {
-          this.addMetadata("require", require)
+          this.addMetadata("require", require.url)
         })
         this.metadataText = this.metadataTextArray.join("\n")
 

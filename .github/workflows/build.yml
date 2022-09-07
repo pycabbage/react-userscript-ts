@@ -38,7 +38,7 @@ jobs:
 
     - name: Get update url
       id: update-url
-      run: echo "::set-output name=PAGES_UPDATE::https://${{ github.actor }}.github.io/${GITHUB_REPOSITORY#*/}/$(ls dist/*.user.js --color=none|sed -e s/dist// )"
+      run: echo "::set-output name=PAGES_UPDATE::https://${{ github.actor }}.github.io/${GITHUB_REPOSITORY#*/}/main.user.js"
 
     - name: Build
       run: yarn build
