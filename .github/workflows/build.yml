@@ -35,9 +35,15 @@ jobs:
 
     - name: Install dependencies
       run: yarn install --frozen-lockfile
-    
+
+    - name: Get update url
+      id: update-url
+      run: echo "::set-env name=PAGES_UPDATE::https://${{ github.actor }}.github.io/${GITHUB_REPOSITORY#*/}/main.user.js"
+
     - name: Build
       run: yarn build
+      env:
+        USERSCRIPT_UPDATE_URL: ${{ steps.update-url.outputs.PAGES_UPDATE }}
 
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v1
@@ -57,5 +63,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v1
-        env:
-          U_UPDATE_URL: 'https://${{ github.actor }}.github.io/${GITHUB_REPOSITORY}/main.user.js'
