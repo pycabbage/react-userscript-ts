@@ -120,6 +120,7 @@ export class UserscriptPlugin implements WebpackPluginInstance {
     const includeReactDOM = this.metadataArray.map(meta => (meta.key === "require" && /react-dom@.*\.js/.test(meta.value))).includes(true)
     if (this.options.useCDN && !includeReact) {
       this.addMetadata("require", `https://unpkg.com/react@${this.options.reactVersion}/umd/react.${isDev ? "development" : "production.min"}.js`)
+      // this.addMetadata("require", `https://unpkg.com/react@${this.options.reactVersion}/cjs/react-jsx-dev-runtime.${isDev ? "development" : "production.min"}.js`)
     }
     if (this.options.useCDN && !includeReactDOM) {
       this.addMetadata("require", `https://unpkg.com/react-dom@${this.options.reactDomVersion}/umd/react-dom.${isDev ? "development" : "production.min"}.js`)
@@ -156,25 +157,28 @@ export class UserscriptPlugin implements WebpackPluginInstance {
   ): string | void {
     const tr = [
       ["umd"],
+      ["dist"],
       ["lib", "umd"],
       [],
-    ]
+    ];
     if (!relativePath) {
-      return this._getLinkFromLocal(name, version, isDev, tr[tried + 1], tried + 1);
+      if (tried < tr.length) {
+        return this._getLinkFromLocal(name, version, isDev, tr[tried + 1], tried + 1);
+      } else return
     }
     const path = join(__dirname, "../node_modules", name, ...relativePath)
     if (existsSync(path)) {
       const dir = readdirSync(path);
-      if (dir.some(f=>/\.min\./.test(f))) {
+      if (dir.some(f => /\.min\./.test(f))) {
         const res: IFS = {};
-        dir.filter(f => f.includes(".js")).forEach((file) => {
+        dir.filter(f => /\.js$/.test(f)).forEach((file) => {
           if (/\.min\..s$/.test(file)) {
             res.prod = file;
           } else {
             res.dev = file;
           }
         })
-        return `https://unpkg.com/${name}@${version}/${relativePath.join("/")}${relativePath.length?"/":""}${res[isDev ? "dev" : "prod"]}`
+        return `https://unpkg.com/${name}@${version}/${relativePath.join("/")}${relativePath.length ? "/" : ""}${res[isDev ? "dev" : "prod"]}`
       } else {
         if (tried < tr.length) {
           return this._getLinkFromLocal(name, version, isDev, tr[tried + 1], tried + 1);
@@ -189,7 +193,7 @@ export class UserscriptPlugin implements WebpackPluginInstance {
   }
 
   getLink(name: string, version: string, isDev: boolean): string {
-    let link: string|void = this._getLinkFromLocal(name, version, isDev);
+    let link: string | void = this._getLinkFromLocal(name, version, isDev);
     if (link) {
       return link;
     } else {
@@ -241,51 +245,17 @@ export class UserscriptPlugin implements WebpackPluginInstance {
         (data, callback) => {
           if (this.options.useCDN) {
             const isDev = compiler.options.mode === "development"
-            if (/^react(\/.*)?/.test(data.request || "")) {
-              return callback(undefined, "React")
-            } else if (/^react-dom(\/.*)?/.test(data.request || "")) {
-              return callback(undefined, "ReactDOM")
-            } else {
-              let ok = false;
-              this.options.appendExternal!.forEach((external) => {
-                if (data.request && data.request.includes(external.name)) {
-                  /*
-                  if (external.url) {
-                    if (typeof external.url === "string") {
-                      this.requireArray.push({
-                        name: external.name,
-                        url: external.url
-                      })
-                    } else {
-                      this.requireArray.push({
-                        name: external.name,
-                        url: external.url[isDev ? "dev" : "prod"]
-                      })
-                    }
-                  } else {
-                    let version: string = external.version
-                      // @ts-ignore
-                      || PackageJson.devDependencies[external.name]
-                      // @ts-ignore
-                      || PackageJson.dependencies[external.name]
-                      || "latest";
-                    this.getLink(external.name, version, isDev).then(link => {
-                      this.requireArray.push({
-                        name: external.name,
-                        url: link
-                      })
-                    })
-                  }
-                  */
-                  this.appendExternal(external, isDev)
-                  ok = true;
-                  callback(undefined, external.as)
-                }
-              })
-              // this.getCDNLink()
-              if (!ok) {
-                return callback()
+            let ok = false;
+            this.options.appendExternal!.forEach((external) => {
+              if (data.request && data.request.includes(external.name)) {
+                this.appendExternal(external, isDev)
+                ok = true;
+                callback(undefined, external.as)
               }
+            })
+            // this.getCDNLink()
+            if (!ok) {
+              return callback()
             }
           }
         }

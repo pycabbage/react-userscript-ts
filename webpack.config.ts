@@ -21,7 +21,14 @@ const config: { devServer?: DevServerConfiguration } & Configuration = {
         test: /\.[tj]sx?/,
         exclude: /node_modules/,
         use: "ts-loader",
-      }
+      },
+      {
+        test: /\.css$/,
+        use: [
+          'style-loader',
+          'css-loader'
+        ]
+      },
     ]
   },
   externals: {},
@@ -34,7 +41,13 @@ const config: { devServer?: DevServerConfiguration } & Configuration = {
   plugins: [
     new CleanWebpackPlugin(),
     new ProgressPlugin(),
-    new UserscriptPlugin(),
+    new UserscriptPlugin({
+      useCDN: true,
+      appendExternal: [{
+        name: "react-bootstrap",
+        as: "ReactBootstrap"
+      }]
+    }),
   ],
   devtool: false,
   cache:true,

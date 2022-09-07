@@ -4,12 +4,28 @@
 
 for example:
 
+### MaterialUI
+
 ```typescript:webpack.config.ts
     new UserscriptPlugin({
       useCDN: true,
       appendExternal: [{
         name: "@mui/material",
         as: "MaterialUI"
+      }]
+    }),
+```
+
+### React Bootstrap
+
+Currently only works in production builds.
+
+```typescript:webpack.config.ts
+    new UserscriptPlugin({
+      useCDN: true,
+      appendExternal: [{
+        name: "react-bootstrap",
+        as: "ReactBootstrap"
       }]
     }),
 ```
