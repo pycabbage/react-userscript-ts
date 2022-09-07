@@ -3,15 +3,23 @@ import { readFileSync } from "fs";
 import { Compiler, EntryNormalized, WebpackPluginInstance } from "webpack";
 // @ts-ignore
 import parse from "eslint-plugin-userscripts/lib/utils/parse";
-import { ReplaceSource, Source } from "webpack-sources";
-import PackageJson from "../package.json";
 import { join } from "path";
-import { validate } from 'schema-utils';
+import { ConcatSource, Source } from "webpack-sources";
+import PackageJson from "../package.json";
 
 type OptionsType = Partial<{
+  /** use CDN or include React library */
   useCDN: boolean;
+  /**
+   * React version
+   * - if not specified, read from `package.json`
+   */
   reactVersion: string;
-  reactdomVersion: string;
+  /**
+   * ReactDOM version
+   * - if not specified, read from `package.json`
+   */
+  reactDomVersion: string;
 }>;
 
 interface metadataValue {
@@ -47,7 +55,7 @@ export class UserscriptPlugin implements WebpackPluginInstance {
     this.options = { ...{
       useCDN: true,
       reactVersion: PackageJson.devDependencies["react"],
-      reactdomVersion: PackageJson.devDependencies["react-dom"],
+      reactDomVersion: PackageJson.devDependencies["react-dom"],
     }, ...options };
   }
 
@@ -74,7 +82,7 @@ export class UserscriptPlugin implements WebpackPluginInstance {
     if (this.options.useCDN && !includeReactDOM) {
       const metadata = {
         key: "require",
-        value: `https://unpkg.com/react-dom@${this.options.reactdomVersion}/umd/react-dom.${isDev ? "development" : "production.min"}.js`
+        value: `https://unpkg.com/react-dom@${this.options.reactDomVersion}/umd/react-dom.${isDev ? "development" : "production.min"}.js`
       }
       this.metadataArray.push(metadata)
       this.metadataTextArray.splice(this.metadataArray.length, 0,
@@ -85,42 +93,34 @@ export class UserscriptPlugin implements WebpackPluginInstance {
 
   apply(compiler: Compiler) {
     if (this.options.useCDN) {
-      compiler.options.externals = {
+      compiler.options.externals = {...{
         "react": "React",
         "react/jsx-runtime": "React",
         "react-dom": "ReactDOM",
         "react-dom/client": "ReactDOM",
-      }
+      }, ...(compiler.options.externals as Object)}
     }
-    compiler.hooks.entryOption.tap("UserscriptPlugin", ((path, entries ) => {
+    if (typeof compiler.options.output.filename === "string" && !compiler.options.output.filename.endsWith(".user.js")) {
+      compiler.options.output.filename = compiler.options.output.filename.replace(/\.js/, ".user.js")
+    }
+    compiler.hooks.entryOption.tap("UserscriptPlugin", (( path, entries ) => {
       const isDev = compiler.options.mode === "development"
-      const filepath = join(path, (entries as { main: { import: string[] } } & EntryNormalized).main.import[0])
-      this.metadataText = this.readMetadata(filepath, isDev)
+      for (const e in entries) {
+        const filepath = join(path, (entries as { [index: string]: { import: string[] } } & EntryNormalized)[e].import[0] as string);
+        this.metadataText = this.readMetadata(filepath, isDev)
+        if (this.metadataText) break;
+      }
     }) as (path: string, entries: EntryNormalized) => boolean)
 
     // insert metadata to head of emitted asset
-    /*
-    compiler.hooks.emit.tap("UserscriptPlugin", compilation => {
-      for (const asset in compilation.assets) {
-        // @ts-ignore
-        if (compilation.assets[asset]["_children"]) {
-        // @ts-ignore
-          compilation.assets[asset]["_children"][0] = this.metadataText + "\n\n" + compilation.assets[asset]["_children"][0]
-        }
-        // @ts-ignore
-        compilation.assets[asset]["_value"] = this.metadataText + "\n\n" + compilation.assets[asset]["_value"]
-        console.log(asset, compilation.assets[asset])
-      }
-    })
-    */
     compiler.hooks.make.tap("UserscriptPlugin", compilation => {
       compilation.hooks.afterOptimizeAssets.tap("UserscriptPlugin", assets => {
         for (const name in assets) {
           const asset = assets[name]
-          const rep = new ReplaceSource(asset as Source, "metadata")
-          rep.insert(0, this.metadataText + "\n\n", "metadata")
-          compilation.updateAsset(name, asset)
-          console.log("rep:", asset)
+          const inserted = new ConcatSource(this.metadataText + "\n\n")
+          inserted.add(asset as Source)
+          // @ts-ignore
+          compilation.updateAsset(name, inserted)
         }
       })
     })

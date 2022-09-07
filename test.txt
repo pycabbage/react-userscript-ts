@@ -1,8 +1,0 @@
-// ==UserScript==
-// @name         Test
-// @version      0.1
-// @description  try to take over the world!
-// @match        https://www.google.com/
-// @require      https://unpkg.com/react@18/umd/react.production.min.js
-// @require      https://unpkg.com/react-dom@18/umd/react-dom.production.min.js
-// ==/UserScript==

@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         New Userscript
+// @name         New React Userscript
 // @version      0.1
 // @description  New React Userscript
 // @author       You
@@ -12,9 +12,11 @@ import "./index.css";
 import App from "./App";
 
 // Specify container here
-const container = document.querySelector("#root")!;
-const root = createRoot(container);
-console.log("// @name         New Userscript");
+const container = document.querySelector("body > div")!;
+while (container.lastChild) {
+  container.removeChild(container.lastChild);
+}
+const root = createRoot(container!);
 root.render(
   <StrictMode>
     <App />

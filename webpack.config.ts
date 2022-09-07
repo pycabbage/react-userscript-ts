@@ -1,22 +1,16 @@
 import path from 'path';
-import { BannerPlugin, Configuration, ProgressPlugin } from 'webpack';
+import type { Configuration } from 'webpack';
+import type { Configuration as DevServerConfiguration } from "webpack-dev-server";
+import { ProgressPlugin } from 'webpack';
 import { UserscriptPlugin } from './src/__util';
+import { CleanWebpackPlugin } from 'clean-webpack-plugin';
 
-const metadata = `// ==UserScript==
-// @name         Test
-// @version      0.1
-// @description  try to take over the world!
-// @match        https://www.google.com/
-// @require      https://unpkg.com/react@18/umd/react.production.min.js
-// @require      https://unpkg.com/react-dom@18/umd/react-dom.production.min.js
-// ==/UserScript==
-`
-
-const config: Configuration = {
+const config: { devServer?: DevServerConfiguration } & Configuration = {
   entry: "./src/index.tsx",
   output: {
-    filename: "bundle.js",
-    path: path.resolve(process.cwd() + "/dist")
+    filename: "[name].js",
+    path: path.join(__dirname, "/dist"),
+    clean: true
   },
   resolve: {
     extensions: [".ts", ".tsx", ".js", ".jsx"]
@@ -26,35 +20,25 @@ const config: Configuration = {
       {
         test: /\.[tj]sx?/,
         exclude: /node_modules/,
-        use: ["ts-loader"]
+        use: "ts-loader",
       }
     ]
   },
-  externals: {
-    "react": "React",
-    "react/jsx-runtime": "React",
-    "react-dom": "ReactDOM",
-    "react-dom/client": "ReactDOM",
+  externals: {},
+  devServer: {
+    static: {
+      directory: path.join(__dirname, "/dist")
+    },
+    port: 9000
   },
   plugins: [
+    new CleanWebpackPlugin(),
     new ProgressPlugin(),
-    // new UserscriptPlugin({
-    //   useCDN: true
-    // }),
-    new BannerPlugin({
-      banner: metadata,
-      raw: true,
-      entryOnly: false
+    new UserscriptPlugin({
+      // useCDN: false,
     }),
   ],
   devtool: false,
-  optimization: {
-    minimizer: [function (this, compiler) {
-      
-    }]
-  },
   cache:true,
-
-  
 }
 export default config;
