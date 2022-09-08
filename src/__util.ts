@@ -226,10 +226,12 @@ export class UserscriptPlugin implements WebpackPluginInstance {
         || PackageJson.dependencies[external.name]
         || "latest";
       const link = this.getLink(external.name, version, isDev)
-      this.requireArray.push({
-        name: external.name,
-        url: link
-      })
+      if (!this.requireArray.map(r=>r.url).includes(link)) {
+        this.requireArray.push({
+          name: external.name,
+          url: link
+        })
+      }
     }
   }
 

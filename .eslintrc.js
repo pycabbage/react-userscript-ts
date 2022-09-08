@@ -5,6 +5,8 @@ module.exports = {
     es2021: true,
   },
   extends: [
+    "react-app",
+    "react-app/jest",
     "plugin:react/recommended",
     "plugin:userscripts/recommended",
     "standard-with-typescript",

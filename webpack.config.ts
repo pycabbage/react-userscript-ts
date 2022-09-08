@@ -43,10 +43,12 @@ const config: { devServer?: DevServerConfiguration } & Configuration = {
     new ProgressPlugin(),
     new UserscriptPlugin({
       useCDN: true,
-      appendExternal: [{
-        name: "react-bootstrap",
-        as: "ReactBootstrap"
-      }]
+      appendExternal: [
+        {
+          name: "@reduxjs/toolkit",
+          as: "RTK"
+        }
+      ]
     }),
   ],
   devtool: false,
