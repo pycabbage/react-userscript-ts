@@ -221,10 +221,10 @@ export class UserscriptPlugin implements WebpackPluginInstance {
     } else {
       let version: string = external.version
         // @ts-ignore
-        || PackageJson.devDependencies[external.name]
+        || (Object.keys(PackageJson).includes("dependencies") && PackageJson.dependencies[external.name])
         // @ts-ignore
-        || PackageJson.dependencies[external.name]
-        || "latest";
+        || (Object.keys(PackageJson).includes("devDependencies") && PackageJson.devDependencies[external.name])
+        || "latest"
       const link = this.getLink(external.name, version, isDev)
       if (!this.requireArray.map(r=>r.url).includes(link)) {
         this.requireArray.push({

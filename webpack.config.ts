@@ -47,7 +47,11 @@ const config: { devServer?: DevServerConfiguration } & Configuration = {
         {
           name: "@reduxjs/toolkit",
           as: "RTK"
-        }
+        },
+        {
+          name: "react-redux",
+          as: "ReactRedux"
+        },
       ]
     }),
   ],
