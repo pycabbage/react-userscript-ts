@@ -44,14 +44,6 @@ const config: { devServer?: DevServerConfiguration } & Configuration = {
     new UserscriptPlugin({
       useCDN: true,
       appendExternal: [
-        {
-          name: "@reduxjs/toolkit",
-          as: "RTK"
-        },
-        {
-          name: "react-redux",
-          as: "ReactRedux"
-        },
       ]
     }),
   ],

@@ -9,10 +9,12 @@ for example:
 ```typescript:webpack.config.ts
     new UserscriptPlugin({
       useCDN: true,
-      appendExternal: [{
-        name: "@mui/material",
-        as: "MaterialUI"
-      }]
+      appendExternal: [
+        {
+          name: "@mui/material",
+          as: "MaterialUI"
+        },
+      ]
     }),
 ```
 
@@ -23,13 +25,15 @@ Currently only works in production builds.
 ```typescript:webpack.config.ts
     new UserscriptPlugin({
       useCDN: true,
-      appendExternal: [{
-        name: "react-bootstrap",
-        as: "ReactBootstrap"
-      },{
-        name: "react-is",
-        as: "ReactIs"
-      }]
+      appendExternal: [
+        {
+          name: "react-bootstrap",
+          as: "ReactBootstrap"
+        },{
+          name: "react-is",
+          as: "ReactIs"
+        },
+      ]
     }),
 ```
 

@@ -34,6 +34,10 @@ type OptionsType = Partial<{
    */
   reactDomVersion?: string;
 
+  /**
+   * Additional external libraries other than react
+   * - Not ignored when useCDN is false
+   */
   appendExternal?: IExternal[];
 }>;
 
@@ -236,35 +240,35 @@ export class UserscriptPlugin implements WebpackPluginInstance {
   }
 
   fixDependencyLink(compiler: Compiler): Compiler["options"]["externals"] {
-    if (this.options.useCDN) {
-      return [
-        {
-          "react": "React",
-          "react/jsx-runtime": "React",
-          "react-dom": "ReactDOM",
-          "react-dom/client": "ReactDOM",
-        },
-        (data, callback) => {
-          if (this.options.useCDN) {
-            const isDev = compiler.options.mode === "development"
-            let ok = false;
-            this.options.appendExternal!.forEach((external) => {
-              if (data.request && data.request.includes(external.name)) {
-                this.appendExternal(external, isDev)
-                ok = true;
-                callback(undefined, external.as)
-              }
-            })
-            // this.getCDNLink()
-            if (!ok) {
-              return callback()
+    // if (this.options.useCDN) {
+    return [
+      (this.options.useCDN ? {
+        "react": "React",
+        "react/jsx-runtime": "React",
+        "react-dom": "ReactDOM",
+        "react-dom/client": "ReactDOM",
+      } : {}),
+      (data, callback) => {
+        if (this.options.useCDN) {
+          const isDev = compiler.options.mode === "development"
+          let ok = false;
+          this.options.appendExternal!.forEach((external) => {
+            if (data.request && data.request.includes(external.name)) {
+              this.appendExternal(external, isDev)
+              ok = true;
+              callback(undefined, external.as)
             }
+          })
+          // this.getCDNLink()
+          if (!ok) {
+            return callback()
           }
         }
-      ]
-    } else {
-      return {}
-    }
+      }
+    ]
+    // } else {
+    //   return {}
+    // }
   }
 
   fixRequireArray(requireArray: this["requireArray"], isDev: boolean): void {
